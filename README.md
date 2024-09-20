@@ -9,3 +9,10 @@ This project is a decentralized peer-to-peer (P2P) static website that operates 
 - **P2P Communication**: The website supports direct communication between peers, eliminating the need for a central server and promoting a decentralized architecture.
 - **Automatic Propagation**: Once connected, the initial peer ID is continuously propagated between all participants, ensuring automatic peer discovery and connectivity without further user input.
 
+## Problems
+
+1. **Scalability**: As the number of peers grows, the system may struggle with scaling efficiently. Managing larger peer groups could introduce issues with synchronization, peer discovery delays, and network overhead.
+   
+2. **STUN Server Requirement**: The P2P network  relies on a STUN server for peer discovery. However, the STUN server might not always be available, and when it is, it is often used inefficiently, leading to unnecessary bottlenecks and overhead in peer communication.
+
+3. **Poor Network Approach**: The current networking strategy may not be optimal for handling dynamic connections, NAT traversal, and peer management. This could result in suboptimal performance, especially in environments with variable network conditions, high latency, or restrictive firewalls.

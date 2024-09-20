@@ -1,4 +1,7 @@
-Project Description:
+# right-now
+
+**Project Description:**
+
 This is a decentralized peer-to-peer (P2P) static website that operates entirely through one HTML file. The key feature of this system is the ability to connect peers seamlessly by sharing only one initial peer ID. Once a peer ID is known and connected, it automatically propagates and shares this information with other peers in the network. This eliminates the need for manually sharing IDs between peers beyond the initial one.
 
 Key Features:

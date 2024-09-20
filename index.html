@@ -290,138 +290,151 @@
 
 <script>
 
-    const encryptionKey = 'your-static-encryption-key'; // Static encryption key
+const encryptionKey = 'your-static-encryption-key';
 
-    const peer = new Peer({
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' } // Use 'urls' for the STUN server config
-            ]
-        }
-    });
+const peer = new Peer({
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' } // use 'urls' instead of 'url'
+        ]
+    }
+});
+
+
+
 
     const connections = new Map();
 
     // Display the Peer ID when created
-    peer.on('open', function (id) {
+    peer.on('open', function(id) {
         document.getElementById('peer-id').innerText = "Your ID: " + id;
         loadKnownPeers();
     });
 
-    // Handle incoming connections
-    peer.on('connection', function (connection) {
-        addConnection(connection);
-
-        connection.on('open', function () {
-            displayMessage('Connected to: ' + connection.peer, 'received');
-            savePeer(connection.peer);
-            sendPeerListToConnection(connection);
-        });
-
-        connection.on('data', function (encryptedData) {
-            handleReceivedData(encryptedData, connection.peer);
-        });
-
-        connection.on('close', function () {
-            handleDisconnection(connection.peer);
-        });
-    });
-
-    // Add a new connection
-    function addConnection(connection) {
+    peer.on('connection', function(connection) {
         if (!connections.has(connection.peer)) {
             connections.set(connection.peer, connection);
-        }
-    }
 
-    // Handle received data (messages, peer list, or images)
-    function handleReceivedData(encryptedData, peerId) {
-        const decryptedMessage = decryptMessage(encryptedData);
+            connection.on('open', function() {
+                displayMessage('Connected to: ' + connection.peer, 'received');
+                savePeer(connection.peer);
+                // Send the peer list when a new connection is made
+                const peerList = Array.from(connections.keys());
+                const peerListMessage = 'PEER_LIST:' + JSON.stringify(peerList);
+                const encryptedPeerListMessage = encryptMessage(peerListMessage);
+                connection.send(encryptedPeerListMessage);
+            });
 
-        if (decryptedMessage.startsWith('PEER_LIST:')) {
-            const peerList = JSON.parse(decryptedMessage.substring('PEER_LIST:'.length));
-            handlePeerList(peerList);
-        } else if (decryptedMessage.startsWith('IMAGE_DATA:')) {
-            const base64Image = decryptedMessage.substring('IMAGE_DATA:'.length);
-            displayImage(base64Image);
+            connection.on('data', function(encryptedData) {
+                const decryptedMessage = decryptMessage(encryptedData);
+
+                if (decryptedMessage.startsWith('PEER_LIST:')) {
+                    // Handle received peer list
+                    const peerList = JSON.parse(decryptedMessage.substring('PEER_LIST:'.length));
+                    handlePeerList(peerList);
+                } else if (decryptedMessage.startsWith('IMAGE_DATA:')) {
+                    // Handle received image data
+                    const base64Image = decryptedMessage.substring('IMAGE_DATA:'.length);
+                    displayImage(base64Image);
+                } else {
+                    displayMessage('Peer ' + connection.peer + ': ' + decryptedMessage, 'received');
+                }
+            });
         } else {
-            displayMessage('Peer ' + peerId + ': ' + decryptedMessage, 'received');
+            displayMessage('Already connected to: ' + connection.peer, 'received');
         }
-    }
+    });
 
-    // Handle peer disconnection
-    function handleDisconnection(peerId) {
-        if (connections.has(peerId)) {
-            connections.delete(peerId); // Remove the connection
-            removePeer(peerId); // Remove peer from localStorage
-            displayMessage('Disconnected from: ' + peerId, 'info');
-            updatePeerList(); // Update peer list UI
-        }
-    }
-
-    // Connect to peer by entering ID
-    document.getElementById('connect-to-peer').addEventListener('change', function (event) {
+    // Add peer connection
+    document.getElementById('connect-to-peer').addEventListener('change', function(event) {
         const peerId = event.target.value.trim();
         if (peerId && !connections.has(peerId)) {
             const connection = peer.connect(peerId);
-            addConnection(connection);
+            connections.set(peerId, connection);
 
-            connection.on('open', function () {
+            connection.on('open', function() {
                 displayMessage('Connected to: ' + peerId, 'received');
                 savePeer(peerId);
-                sendPeerListToConnection(connection);
+                // Send the peer list when a new connection is made
+                const peerList = Array.from(connections.keys());
+                const peerListMessage = 'PEER_LIST:' + JSON.stringify(peerList);
+                const encryptedPeerListMessage = encryptMessage(peerListMessage);
+                connection.send(encryptedPeerListMessage);
             });
 
-            connection.on('data', function (encryptedData) {
-                handleReceivedData(encryptedData, peerId);
-            });
+            connection.on('data', function(encryptedData) {
+                const decryptedMessage = decryptMessage(encryptedData);
 
-            connection.on('close', function () {
-                handleDisconnection(peerId);
+                if (decryptedMessage.startsWith('PEER_LIST:')) {
+                    // Handle received peer list
+                    const peerList = JSON.parse(decryptedMessage.substring('PEER_LIST:'.length));
+                    handlePeerList(peerList);
+                } else if (decryptedMessage.startsWith('IMAGE_DATA:')) {
+                    // Handle received image data
+                    const base64Image = decryptedMessage.substring('IMAGE_DATA:'.length);
+                    displayImage(base64Image);
+                } else {
+                    displayMessage('Peer ' + peerId + ': ' + decryptedMessage, 'received');
+                }
             });
         } else {
             displayMessage('Already connected to: ' + peerId, 'received');
         }
-        event.target.value = ''; // Clear input
+        event.target.value = '';
     });
 
-    // Send message and peer list to all connected peers
-    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    // Send encrypted message and peer list to all connected peers
+document.getElementById('send-btn').addEventListener('click', function() {
+    const message = document.getElementById('message-input').value;
+    if (message) {
+        const encryptedMessage = encryptMessage(message);
+        const peerList = Array.from(connections.keys());
+        const peerListMessage = 'PEER_LIST:' + JSON.stringify(peerList);
+        const encryptedPeerListMessage = encryptMessage(peerListMessage);
 
-    document.getElementById('message-input').addEventListener('keydown', function (event) {
-        if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent form submission
-            sendMessage();
-        }
-    });
+        connections.forEach(connection => {
+            connection.send(encryptedPeerListMessage); // Send updated peer list
+            connection.send(encryptedMessage); // Send the actual message
+        });
+        displayMessage('You: ' + message, 'sent');
+        document.getElementById('message-input').value = ''; // Clear the input field
+    }
+});
 
-    function sendMessage() {
+document.getElementById('message-input').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // Prevent the default behavior of Enter key (like form submission)
         const message = document.getElementById('message-input').value;
         if (message) {
             const encryptedMessage = encryptMessage(message);
+            const peerList = Array.from(connections.keys());
+            const peerListMessage = 'PEER_LIST:' + JSON.stringify(peerList);
+            const encryptedPeerListMessage = encryptMessage(peerListMessage);
+
             connections.forEach(connection => {
-                sendPeerListToConnection(connection); // Send updated peer list
-                connection.send(encryptedMessage); // Send actual message
+                connection.send(encryptedPeerListMessage); // Send updated peer list
+                connection.send(encryptedMessage); // Send the actual message
             });
             displayMessage('You: ' + message, 'sent');
-            document.getElementById('message-input').value = ''; // Clear input
+            document.getElementById('message-input').value = ''; // Clear the input field
         }
     }
+});
 
     // Upload and send image
-    document.getElementById('upload-btn').addEventListener('click', function () {
+    document.getElementById('upload-btn').addEventListener('click', function() {
         const fileInput = document.getElementById('file-input');
         if (fileInput.files.length > 0) {
             const file = fileInput.files[0];
             const reader = new FileReader();
 
-            reader.onloadend = function () {
-                const base64Image = reader.result.split(',')[1]; // Remove prefix
+            reader.onloadend = function() {
+                const base64Image = reader.result.split(',')[1]; // Remove 'data:image/png;base64,' prefix
                 const imageDataMessage = 'IMAGE_DATA:' + base64Image;
                 const encryptedImageDataMessage = encryptMessage(imageDataMessage);
 
                 connections.forEach(connection => {
-                    connection.send(encryptedImageDataMessage); // Send image data
+                    connection.send(encryptedImageDataMessage); // Send the image data
                 });
                 displayImage(base64Image);
                 fileInput.value = ''; // Clear file input
@@ -430,8 +443,10 @@
             reader.readAsDataURL(file);
         }
     });
+	
 
-    // Display messages
+
+    // Function to display messages
     function displayMessage(message, type) {
         const messagesDiv = document.getElementById('messages');
         const messageBubble = document.createElement('div');
@@ -442,7 +457,7 @@
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Display image
+    // Function to display image
     function displayImage(base64Image) {
         const messagesDiv = document.getElementById('messages');
         const imageElement = document.createElement('img');
@@ -471,32 +486,30 @@
         }
     }
 
-    // Remove peer from localStorage
-    function removePeer(peerId) {
-        let knownPeers = JSON.parse(localStorage.getItem('knownPeers')) || [];
-        knownPeers = knownPeers.filter(id => id !== peerId);
-        localStorage.setItem('knownPeers', JSON.stringify(knownPeers));
-    }
-
     // Load and connect to known peers
     function loadKnownPeers() {
         const knownPeers = JSON.parse(localStorage.getItem('knownPeers')) || [];
         knownPeers.forEach(peerId => {
             if (!connections.has(peerId)) {
                 const connection = peer.connect(peerId);
-                addConnection(connection);
+                connections.set(peerId, connection);
 
-                connection.on('open', function () {
+                connection.on('open', function() {
                     displayMessage('Connected to: ' + peerId, 'received');
                     updatePeerList();
                 });
 
-                connection.on('data', function (encryptedData) {
-                    handleReceivedData(encryptedData, peerId);
-                });
-
-                connection.on('close', function () {
-                    handleDisconnection(peerId);
+                connection.on('data', function(encryptedData) {
+                    const decryptedMessage = decryptMessage(encryptedData);
+                    if (decryptedMessage.startsWith('PEER_LIST:')) {
+                        const peerList = JSON.parse(decryptedMessage.substring('PEER_LIST:'.length));
+                        handlePeerList(peerList);
+                    } else if (decryptedMessage.startsWith('IMAGE_DATA:')) {
+                        const base64Image = decryptedMessage.substring('IMAGE_DATA:'.length);
+                        displayImage(base64Image);
+                    } else {
+                        displayMessage('Peer ' + peerId + ': ' + decryptedMessage, 'received');
+                    }
                 });
             }
         });
@@ -526,19 +539,24 @@
         peerList.forEach(peerId => {
             if (!connections.has(peerId)) {
                 const connection = peer.connect(peerId);
-                addConnection(connection);
+                connections.set(peerId, connection);
 
-                connection.on('open', function () {
+                connection.on('open', function() {
                     displayMessage('Connected to: ' + peerId, 'received');
                     savePeer(peerId);
                 });
 
-                connection.on('data', function (encryptedData) {
-                    handleReceivedData(encryptedData, peerId);
-                });
-
-                connection.on('close', function () {
-                    handleDisconnection(peerId);
+                connection.on('data', function(encryptedData) {
+                    const decryptedMessage = decryptMessage(encryptedData);
+                    if (decryptedMessage.startsWith('PEER_LIST:')) {
+                        const peerList = JSON.parse(decryptedMessage.substring('PEER_LIST:'.length));
+                        handlePeerList(peerList);
+                    } else if (decryptedMessage.startsWith('IMAGE_DATA:')) {
+                        const base64Image = decryptedMessage.substring('IMAGE_DATA:'.length);
+                        displayImage(base64Image);
+                    } else {
+                        displayMessage('Peer ' + peerId + ': ' + decryptedMessage, 'received');
+                    }
                 });
             }
         });
@@ -555,19 +573,30 @@
         });
     }
 
-    // Send the current peer list to a connection
-    function sendPeerListToConnection(connection) {
-        const peerList = Array.from(connections.keys());
-        const peerListMessage = 'PEER_LIST:' + JSON.stringify(peerList);
-        const encryptedPeerListMessage = encryptMessage(peerListMessage);
-        connection.send(encryptedPeerListMessage);
-    }
-
     // Copy Peer ID to clipboard
-    document.getElementById('copy-btn').addEventListener('click', function () {
-        const peerId = document.getElementById('peer-id').innerText.replace('Your ID: ', '');
-        navigator.clipboard.writeText(peerId);
-        alert('Peer ID copied to clipboard');
+    document.getElementById('copy-btn').addEventListener('click', function() {
+        const peerIdText = document.getElementById('peer-id').innerText.replace("Your ID: ", "");
+        navigator.clipboard.writeText(peerIdText).then(() => {
+            alert('Peer ID copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    });
+
+    // Clear Peer IDs from localStorage
+    document.getElementById('clear-btn').addEventListener('click', function() {
+        localStorage.removeItem('knownPeers');
+        connections.clear(); // Clear all connections
+        updatePeerList(); // Update UI to reflect changes
+        displayMessage('Peer list cleared and disconnected from all peers.', 'info');
+    });
+
+    // Toggle peer list visibility
+    document.getElementById('toggle-peer-list-btn').addEventListener('click', function() {
+        const peerListContainer = document.getElementById('peer-list-container');
+        peerListContainer.classList.toggle('show');
+        const isVisible = peerListContainer.classList.contains('show');
+        document.getElementById('toggle-peer-list-btn').innerText = isVisible ? 'Hide Peer List' : 'Show Peer List';
     });
 </script>
 

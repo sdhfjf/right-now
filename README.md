@@ -1,12 +1,11 @@
 # right-now
 
-**Project Description:**
+This project is a decentralized peer-to-peer (P2P) static website that operates using a single HTML file. The website allows seamless communication and peer discovery by sharing just one initial peer ID. Once a peer ID is known, it is automatically propagated and shared among other peers, ensuring smooth and efficient connectivity across the network.
 
-This is a decentralized peer-to-peer (P2P) static website that operates entirely through one HTML file. The key feature of this system is the ability to connect peers seamlessly by sharing only one initial peer ID. Once a peer ID is known and connected, it automatically propagates and shares this information with other peers in the network. This eliminates the need for manually sharing IDs between peers beyond the initial one.
+## Key Features
 
-Key Features:
-Single HTML File: The entire website is contained within one HTML file, minimizing complexity.
-Peer Discovery: Once a peer connects to the network via an initial peer ID, it automatically shares this ID with other connected peers, ensuring decentralized communication and discovery.
-P2P Communication: Direct communication between users without needing a central server, fostering a distributed, resilient architecture.
-Automatic Propagation: After one peer is identified, the network dynamically shares and updates peer IDs between all participants, ensuring continuous peer discovery and updates without user intervention.
-Let me know if you'd like me to expand on any specific parts, or provide examples of how this could work!
+- **Single HTML File**: The entire site is contained in one HTML file, making it lightweight and easy to deploy.
+- **Peer Discovery**: After connecting to the network with a known peer ID, the system automatically shares this ID with other peers, creating a distributed network without requiring manual sharing.
+- **P2P Communication**: The website supports direct communication between peers, eliminating the need for a central server and promoting a decentralized architecture.
+- **Automatic Propagation**: Once connected, the initial peer ID is continuously propagated between all participants, ensuring automatic peer discovery and connectivity without further user input.
+

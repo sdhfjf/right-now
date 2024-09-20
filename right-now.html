@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>right now.</title>
+	<script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --background-color: #e0f7fa;
+            --main-bg-color: #ffffff;
+            --main-text-color: #000000;
+            --button-bg-color: #00796b;
+            --button-text-color: #ffffff;
+            --button-hover-bg-color: #004d40;
+            --bubble-sent-color: #00796b;
+            --bubble-received-color: #004d40;
+            --bubble-text-color: #ffffff;
+            --box-shadow: rgba(0, 0, 0, 0.2);
+            --border-color: #ccc;
+            --image-border-radius: 10px;
+            --message-padding: 10px;
+            --bubble-border-radius: 15px;
+            --peer-id-font-size: 0.9em;
+            --message-font-size: 1em;
+            --peer-id-small-font-size: 0.8em;
+            --button-padding: 10px;
+            --button-margin: 5px;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: var(--background-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #container {
+            display: flex;
+            justify-content: center;
+            width: 90%;
+            max-width: 1200px;
+            position: relative;
+            background-color: var(--background-color);
+        }
+
+        #chat-container {
+            background-color: var(--main-bg-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px var(--box-shadow);
+            padding: 20px;
+            width: 70%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #messages {
+            border: 1px solid var(--border-color);
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: var(--message-padding);
+            border-radius: var(--bubble-border-radius);
+            margin-bottom: 10px;
+            position: relative;
+            display: inline-block;
+            font-size: var(--message-font-size);
+        }
+
+        .sent {
+            background-color: var(--bubble-sent-color);
+            color: var(--bubble-text-color);
+            align-self: flex-end;
+            border-top-right-radius: 0;
+        }
+
+        .received {
+            background-color: var(--bubble-received-color);
+            color: var(--bubble-text-color);
+            align-self: flex-start;
+            border-top-left-radius: 0;
+        }
+
+        .message-bubble::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+        }
+
+        .sent::after {
+            border-left: 10px solid var(--bubble-sent-color);
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .received::after {
+            border-right: 10px solid var(--bubble-received-color);
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        #input-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #input-container #add-peer-container {
+            margin-bottom: 10px;
+        }
+
+        #input-container input, #input-container button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+        }
+
+        #input-container #action-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #input-container #action-buttons button {
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        #input-container button {
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            border: none;
+            cursor: pointer;
+        }
+
+        #input-container button:hover {
+            background-color: var(--button-hover-bg-color);
+        }
+
+        #peer-list-container {
+            width: 25%;
+            padding: 20px;
+            background-color: var(--main-bg-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px var(--box-shadow);
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            overflow-y: auto;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #peer-list-container.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #peer-list-container h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+        }
+
+        #peer-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #peer-list li {
+            padding: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #peer-list li:last-child {
+            border-bottom: none;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border-radius: var(--image-border-radius);
+        }
+
+        #peer-id-container {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        #peer-id-container #peer-id {
+            font-size: var(--peer-id-font-size);
+            margin-bottom: 5px;
+        }
+
+        #peer-id-container button {
+            padding: var(--button-padding);
+            margin: var(--button-margin);
+            background-color: var(--button-bg-color);
+            color: var(--button-text-color);
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        #peer-id-container button:hover {
+            background-color: var(--button-hover-bg-color);
+        }
+
+        #peer-id-container #copy-btn {
+            background-color: #009688;
+        }
+
+        #peer-id-container #copy-btn:hover {
+            background-color: #00796b;
+        }
+
+        #peer-id-container #clear-btn {
+            background-color: #e64a19;
+        }
+
+        #peer-id-container #clear-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        #peer-id-container #toggle-peer-list-btn {
+            background-color: #1976d2;
+        }
+
+        #peer-id-container #toggle-peer-list-btn:hover {
+            background-color: #1565c0;
+        }
+
+        .message-bubble .peer-id {
+            font-size: var(--peer-id-small-font-size);
+            display: block;
+            margin-bottom: 5px;
+            color: var(--bubble-text-color);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="chat-container">
+            <div id="peer-id-container">
+                <div id="peer-id"></div>
+                <button id="copy-btn">Copy ID</button>
+                <button id="clear-btn">Clear Peer IDs</button>
+                <button id="toggle-peer-list-btn">Show Peer List</button>
+            </div>
+            <div id="messages"></div>
+            <div id="input-container">
+                <div id="add-peer-container">
+                    <input type="text" id="connect-to-peer" placeholder="Enter peer ID to connect">
+                </div>
+                <input type="text" id="message-input" placeholder="Enter message">
+                <input type="file" id="file-input" accept="image/*">
+                <div id="action-buttons">
+                    <button id="send-btn">Send</button>
+                    <button id="upload-btn">Upload Image</button>
+                </div>
+            </div>
+        </div>
+        <div id="peer-list-container">
+            <h2>Connected Peers</h2>
+            <ul id="peer-list"></ul>
+        </div>
+    </div>
+
+<script>
+
+    const encryptionKey = 'your-static-encryption-key'; // Static encryption key
+
+    const peer = new Peer({
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' } // Use 'urls' for the STUN server config
+            ]
+        }
+    });
+
+    const connections = new Map();
+
+    // Display the Peer ID when created
+    peer.on('open', function (id) {
+        document.getElementById('peer-id').innerText = "Your ID: " + id;
+        loadKnownPeers();
+    });
+
+    // Handle incoming connections
+    peer.on('connection', function (connection) {
+        addConnection(connection);
+
+        connection.on('open', function () {
+            displayMessage('Connected to: ' + connection.peer, 'received');
+            savePeer(connection.peer);
+            sendPeerListToConnection(connection);
+        });
+
+        connection.on('data', function (encryptedData) {
+            handleReceivedData(encryptedData, connection.peer);
+        });
+
+        connection.on('close', function () {
+            handleDisconnection(connection.peer);
+        });
+    });
+
+    // Add a new connection
+    function addConnection(connection) {
+        if (!connections.has(connection.peer)) {
+            connections.set(connection.peer, connection);
+        }
+    }
+
+    // Handle received data (messages, peer list, or images)
+    function handleReceivedData(encryptedData, peerId) {
+        const decryptedMessage = decryptMessage(encryptedData);
+
+        if (decryptedMessage.startsWith('PEER_LIST:')) {
+            const peerList = JSON.parse(decryptedMessage.substring('PEER_LIST:'.length));
+            handlePeerList(peerList);
+        } else if (decryptedMessage.startsWith('IMAGE_DATA:')) {
+            const base64Image = decryptedMessage.substring('IMAGE_DATA:'.length);
+            displayImage(base64Image);
+        } else {
+            displayMessage('Peer ' + peerId + ': ' + decryptedMessage, 'received');
+        }
+    }
+
+    // Handle peer disconnection
+    function handleDisconnection(peerId) {
+        if (connections.has(peerId)) {
+            connections.delete(peerId); // Remove the connection
+            removePeer(peerId); // Remove peer from localStorage
+            displayMessage('Disconnected from: ' + peerId, 'info');
+            updatePeerList(); // Update peer list UI
+        }
+    }
+
+    // Connect to peer by entering ID
+    document.getElementById('connect-to-peer').addEventListener('change', function (event) {
+        const peerId = event.target.value.trim();
+        if (peerId && !connections.has(peerId)) {
+            const connection = peer.connect(peerId);
+            addConnection(connection);
+
+            connection.on('open', function () {
+                displayMessage('Connected to: ' + peerId, 'received');
+                savePeer(peerId);
+                sendPeerListToConnection(connection);
+            });
+
+            connection.on('data', function (encryptedData) {
+                handleReceivedData(encryptedData, peerId);
+            });
+
+            connection.on('close', function () {
+                handleDisconnection(peerId);
+            });
+        } else {
+            displayMessage('Already connected to: ' + peerId, 'received');
+        }
+        event.target.value = ''; // Clear input
+    });
+
+    // Send message and peer list to all connected peers
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+    document.getElementById('message-input').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent form submission
+            sendMessage();
+        }
+    });
+
+    function sendMessage() {
+        const message = document.getElementById('message-input').value;
+        if (message) {
+            const encryptedMessage = encryptMessage(message);
+            connections.forEach(connection => {
+                sendPeerListToConnection(connection); // Send updated peer list
+                connection.send(encryptedMessage); // Send actual message
+            });
+            displayMessage('You: ' + message, 'sent');
+            document.getElementById('message-input').value = ''; // Clear input
+        }
+    }
+
+    // Upload and send image
+    document.getElementById('upload-btn').addEventListener('click', function () {
+        const fileInput = document.getElementById('file-input');
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onloadend = function () {
+                const base64Image = reader.result.split(',')[1]; // Remove prefix
+                const imageDataMessage = 'IMAGE_DATA:' + base64Image;
+                const encryptedImageDataMessage = encryptMessage(imageDataMessage);
+
+                connections.forEach(connection => {
+                    connection.send(encryptedImageDataMessage); // Send image data
+                });
+                displayImage(base64Image);
+                fileInput.value = ''; // Clear file input
+            };
+
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Display messages
+    function displayMessage(message, type) {
+        const messagesDiv = document.getElementById('messages');
+        const messageBubble = document.createElement('div');
+        messageBubble.className = 'message-bubble ' + type;
+        const [peerId, text] = message.split(': ', 2);
+        messageBubble.innerHTML = `<span class="peer-id">${peerId}</span>${text || ''}`;
+        messagesDiv.appendChild(messageBubble);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Display image
+    function displayImage(base64Image) {
+        const messagesDiv = document.getElementById('messages');
+        const imageElement = document.createElement('img');
+        imageElement.src = 'data:image/png;base64,' + base64Image;
+        messagesDiv.appendChild(imageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Encrypt message
+    function encryptMessage(message) {
+        return CryptoJS.AES.encrypt(message, encryptionKey).toString();
+    }
+
+    // Decrypt message
+    function decryptMessage(encryptedMessage) {
+        const bytes = CryptoJS.AES.decrypt(encryptedMessage, encryptionKey);
+        return bytes.toString(CryptoJS.enc.Utf8);
+    }
+
+    // Save peer to localStorage
+    function savePeer(peerId) {
+        let knownPeers = JSON.parse(localStorage.getItem('knownPeers')) || [];
+        if (!knownPeers.includes(peerId)) {
+            knownPeers.push(peerId);
+            localStorage.setItem('knownPeers', JSON.stringify(knownPeers));
+        }
+    }
+
+    // Remove peer from localStorage
+    function removePeer(peerId) {
+        let knownPeers = JSON.parse(localStorage.getItem('knownPeers')) || [];
+        knownPeers = knownPeers.filter(id => id !== peerId);
+        localStorage.setItem('knownPeers', JSON.stringify(knownPeers));
+    }
+
+    // Load and connect to known peers
+    function loadKnownPeers() {
+        const knownPeers = JSON.parse(localStorage.getItem('knownPeers')) || [];
+        knownPeers.forEach(peerId => {
+            if (!connections.has(peerId)) {
+                const connection = peer.connect(peerId);
+                addConnection(connection);
+
+                connection.on('open', function () {
+                    displayMessage('Connected to: ' + peerId, 'received');
+                    updatePeerList();
+                });
+
+                connection.on('data', function (encryptedData) {
+                    handleReceivedData(encryptedData, peerId);
+                });
+
+                connection.on('close', function () {
+                    handleDisconnection(peerId);
+                });
+            }
+        });
+    }
+
+    // Handle received peer list
+    function handlePeerList(peerList) {
+        let knownPeers = JSON.parse(localStorage.getItem('knownPeers')) || [];
+        let updated = false;
+
+        peerList.forEach(peerId => {
+            if (!connections.has(peerId) && !knownPeers.includes(peerId)) {
+                knownPeers.push(peerId);
+                updated = true;
+            }
+        });
+
+        if (updated) {
+            localStorage.setItem('knownPeers', JSON.stringify(knownPeers));
+            addPeersToList(peerList);
+            updatePeerList();
+        }
+    }
+
+    // Add peers from list
+    function addPeersToList(peerList) {
+        peerList.forEach(peerId => {
+            if (!connections.has(peerId)) {
+                const connection = peer.connect(peerId);
+                addConnection(connection);
+
+                connection.on('open', function () {
+                    displayMessage('Connected to: ' + peerId, 'received');
+                    savePeer(peerId);
+                });
+
+                connection.on('data', function (encryptedData) {
+                    handleReceivedData(encryptedData, peerId);
+                });
+
+                connection.on('close', function () {
+                    handleDisconnection(peerId);
+                });
+            }
+        });
+    }
+
+    // Update the list of connected peers
+    function updatePeerList() {
+        const peerListUl = document.getElementById('peer-list');
+        peerListUl.innerHTML = ''; // Clear the list
+        connections.forEach((_, peerId) => {
+            const li = document.createElement('li');
+            li.textContent = peerId;
+            peerListUl.appendChild(li);
+        });
+    }
+
+    // Send the current peer list to a connection
+    function sendPeerListToConnection(connection) {
+        const peerList = Array.from(connections.keys());
+        const peerListMessage = 'PEER_LIST:' + JSON.stringify(peerList);
+        const encryptedPeerListMessage = encryptMessage(peerListMessage);
+        connection.send(encryptedPeerListMessage);
+    }
+
+    // Copy Peer ID to clipboard
+    document.getElementById('copy-btn').addEventListener('click', function () {
+        const peerId = document.getElementById('peer-id').innerText.replace('Your ID: ', '');
+        navigator.clipboard.writeText(peerId);
+        alert('Peer ID copied to clipboard');
+    });
+</script>
+
+
+</body>
+</html>
